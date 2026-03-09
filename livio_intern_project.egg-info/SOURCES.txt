@@ -1,0 +1,8 @@
+LICENSE
+README.md
+setup.py
+livio_intern_project.egg-info/PKG-INFO
+livio_intern_project.egg-info/SOURCES.txt
+livio_intern_project.egg-info/dependency_links.txt
+livio_intern_project.egg-info/requires.txt
+livio_intern_project.egg-info/top_level.txt
