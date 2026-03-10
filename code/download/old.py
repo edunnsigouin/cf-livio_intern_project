@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-
 import os
 import xarray as xr
 
@@ -11,7 +9,7 @@ filename = url.split("/")[-1]
 fullfile = f"{outdir}/{filename}"
 subsetfile = f"{outdir}/scandinavia_{filename}"
 
-os.makedirs(outdir, exist_ok=True)
+#os.makedirs(outdir, exist_ok=True)
 
 # download using wget
 print("Downloading file...")
