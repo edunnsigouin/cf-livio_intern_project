@@ -1,0 +1,44 @@
+Instructions to download cesm2-le data using globus data transfer service.
+
+A quick summary is provided here but more information can be found using these links:
+
+https://docs.globus.org/guides/tutorials/manage-files/transfer-files/
+https://docs.globus.org/globus-connect-personal/install/linux/
+
+
+Steps:
+
+- create an account at www.globus.org. I logged in using my orcid ID.
+
+- go to file manager on the website. SHould be button on left-hand side.
+
+- find the collections where cesm2-le sits (NSF NCAR GDEX Dataset Archive)
+
+- find the path where the data you want lives (/d651056/CESM2-LE/atm/proc/tseries/day_1/PRECT/). I found this by
+looking at this website (https://gdex.ucar.edu/datasets/d651056/dataaccess/#), pressing on the file I want, and then pressing on
+globus download button. Here they list a directory which you can use as a path in globus.
+
+- You can filter a subset of the files using the gui.
+
+- Now you need to install globus personal on your "endpoint", i.e. the place to send the data to. Download the
+installer here: wget https://downloads.globus.org/globus-connect-personal/linux/stable/globusconnectpersonal-latest.tgz
+
+- extract the files (tar xzf globusconnectpersonal-latest.tgz) and cd into the directory. Install globus personal by using the command "./globusconnectpersonal"
+
+- It will ask you to give a name to the collection where you are downloading your data. I called mine "climate_futures_sigma2"
+
+- Go back to the terminal and give globus access to the directory you want to download to by changing the config paths file ~/.globusonline/lta/config-paths
+
+- In this file I wrote "/nird/datalake/NS9873K/etdu/raw/smile/cesm2-le/scandinavia/PRECT/,0,1". 0 gives no share access and 1 gives read-write.
+
+- Then in the globus directory start globus in the background using the command "./globusconnectpersonal -start &"
+
+- Then go back to the website. If you've chosen your files to download from NCAR, press "transfer or Sync to". Then find the collection climate_futures_sigma2 and the path /nird/datalake/NS9873K/etdu/raw/smile/cesm2-le/scandinavia/PRECT/ where you want your data to go.
+
+- Press "start". All the files should download to sigma2.
+
+- In the terminal, you can shut down glonus personal using the code "./globusconnectpersonal -stop"
+
+
+
+

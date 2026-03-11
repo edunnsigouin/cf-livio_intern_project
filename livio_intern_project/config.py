@@ -1,20 +1,20 @@
 """
-hard coded paths in cf-hazardwarning
+hard coded paths in cf-livio_intern_project
 """
 
-cf_space             = "/nird/datapeak/NS9873K/etdu/"
+cf_space             = "/nird/datalake/NS9873K/etdu/"
 proj                 = "/nird/home/edu061/cf-livio_intern_project/"
 data                 = proj + "data/"
 fig                  = proj + "fig/"
 
-raw                  = cf_space + "smile/test/"
+raw_cesm2_le         = cf_space + "raw/smile/cesm2_le/scandinavia/"
 processed            = cf_space + "processed/cf-livio_intern_project/"
 
 dirs = {"proj":proj,
         "data":data,
         "fig":fig,
-        "raw":raw,
+        "raw_cesm2_le":raw_cesm2_le,
         "processed":processed
 }        
 
-token = 'jibj0oXm2YCiZF/Y02E91Js98//0SIwM'
+

@@ -12,13 +12,13 @@ import numpy as np
 import xarray as xr
 
 from livio_intern_project.master_file_list_CESM2_LE_PRECT import master_file_list
-from livio_intern_project import config
+from livio_intern_project import config, misc
 
 
 # input ------------------------------
 variable   = "PRECT"
 years      = np.arange(1850, 1860, 1)
-n_members  = 1
+n_members  = 2
 
 outdir     = Path(config.dirs["raw"]) 
 
@@ -267,15 +267,9 @@ def download_and_subset_one_file(url, new_filename, outdir,
 
 if __name__ == "__main__":
 
-    files = subset_cesm2le_files(
-        variable=variable,
-        years=years,
-    )
+    files = subset_cesm2le_files(variable=variable,years=years)
 
-    files = select_first_members_per_group(
-        files,
-        n_members=n_members,
-    )
+    files = select_first_members_per_group(files,n_members=n_members)
 
     new_files = simplified_filename_list(files)
 
@@ -284,6 +278,9 @@ if __name__ == "__main__":
     print(f"Subset bounds: lon {lon_min} to {lon_max}, lat {lat_min} to {lat_max}")
 
     for url, new_name in zip(files, new_files):
+
+        misc.tic()
+        
         print()
         print(f"Processing: {url}")
         print(f"Output name: {new_name}")
@@ -303,3 +300,5 @@ if __name__ == "__main__":
         except Exception as e:
             print(f"Failed for {url}")
             print(f"Reason: {e}")
+
+        misc.toc()
