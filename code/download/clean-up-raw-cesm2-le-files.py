@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 
 # Rename, clean, and geographically subset CESM2-LE NetCDF files
-# Keeps only: variable, lat, lon, time
+# Keeps only: output variable, lat, lon, time
 # New filename format:
-# cesm2-le.{variable}.{ensemble_member_number}.{time_period}.nc
+# cesm2-le.{output_variable}.{ensemble_member_number}.{time_period}.nc
 
 # ============================================================
 # 1) import statements
@@ -21,11 +21,14 @@ from livio_intern_project import config, misc
 # 2) user input parameters
 # ============================================================
 
-# Variable to keep
+# Variable in the raw input files
 variable = "PRECT"
 
+# Variable name to use in processed output files
+output_variable = "tp24"
+
 # Directory containing the original NetCDF files
-input_dir = Path(config.dirs["raw_cesm2_le"] + variable + "/")
+input_dir = Path(config.dirs["raw_cesm2_le"] + output_variable + "/")
 
 # Directory for renamed/cleaned files
 output_dir = input_dir
@@ -50,27 +53,18 @@ expected_files_per_period = 100
 
 # ------------------------------------------------------------
 # Select which time-period groups to process
-#
-# Use None to process all groups
-# Example:
-# selected_time_periods = None
-# or
-# selected_time_periods = ["20000101-20091231"]
-# or
-# selected_time_periods = ["20000101-20091231", "20100101-20191231"]
 # ------------------------------------------------------------
-selected_time_periods = ["20000101-20091231"]
+selected_time_periods = [
+    "19200101-19291231",
+    "19300101-19391231",
+    "19400101-19491231",
+    "19500101-19591231",
+]
 
 # ------------------------------------------------------------
 # Maximum number of files to process within each selected group
-#
-# Use None to process all files in the group
-# Example:
-# max_files_per_group = None
-# max_files_per_group = 5
-# max_files_per_group = 100
 # ------------------------------------------------------------
-max_files_per_group = 1
+max_files_per_group = 100
 
 # ------------------------------------------------------------
 # Geographical bounds for subsetting
@@ -79,6 +73,7 @@ lon_min = 2.0
 lon_max = 32.5
 lat_min = 53.0
 lat_max = 73.5
+
 
 # ============================================================
 # 3) functions
@@ -155,17 +150,17 @@ def limit_files_per_group(groups, max_files_per_group=None):
     return limited
 
 
-def make_output_filename(variable, ensemble_number, time_period):
+def make_output_filename(output_variable, ensemble_number, time_period):
     """
     Build output filename:
-    cesm2-le.{variable}.{ensemble_member_number}.{time_period}.nc
+    cesm2-le.{output_variable}.{ensemble_member_number}.{time_period}.nc
     """
-    return f"cesm2-le.{variable}.{ensemble_number:03d}.{time_period}.nc"
+    return f"cesm2-le.{output_variable}.{ensemble_number:03d}.{time_period}.nc"
 
 
 def keep_only_required_variables(ds, variable):
     """
-    Keep only the requested variable and coordinates lat, lon, time.
+    Keep only the requested raw variable and coordinates lat, lon, time.
     """
     keep_vars = [variable, "lat", "lon", "time"]
     existing_vars = [name for name in keep_vars if name in ds.variables or name in ds.coords]
@@ -219,12 +214,21 @@ def subset_geographical_area(ds, lon_min, lon_max, lat_min, lat_max):
     return ds_sub
 
 
-def process_one_file(infile, outfile, variable,
-                     lon_min, lon_max, lat_min, lat_max,
-                     overwrite=False):
+def process_one_file(
+    infile,
+    outfile,
+    variable,
+    output_variable,
+    lon_min,
+    lon_max,
+    lat_min,
+    lat_max,
+    overwrite=False,
+):
     """
     Open one NetCDF file, keep only variable/lat/lon/time,
-    subset to requested lat/lon region, and write to outfile.
+    subset to requested lat/lon region, rename the output variable,
+    and write to outfile.
     """
     infile = Path(infile)
     outfile = Path(outfile)
@@ -252,22 +256,43 @@ def process_one_file(infile, outfile, variable,
             lat_max=lat_max,
         )
 
-        # --------------------------------------------------
-        # Convert PRECT from m/s to mm/day
-        # --------------------------------------------------
+        # Convert PRECT from m/s to mm/day and rename to tp24
         if variable == "PRECT":
-            ds_out[variable] = ds_out[variable] * 86400000.0
-            ds_out[variable].attrs["units"] = "mm/day"
-            ds_out[variable].attrs["long_name"] = "Total daily precipitation"
-    
+            tp24 = ds_out[variable] * 86400000.0
+            tp24.attrs = ds_out[variable].attrs.copy()
+            tp24.attrs["units"] = "mm/day"
+            tp24.attrs["long_name"] = "Total daily precipitation"
+
+            ds_out = xr.Dataset(
+                data_vars={output_variable: tp24},
+                coords={
+                    "time": ds_out["time"],
+                    "lat": ds_out["lat"],
+                    "lon": ds_out["lon"],
+                },
+                attrs=ds_out.attrs,
+            )
+        else:
+            ds_out = ds_out.rename({variable: output_variable})
+
         ds_out.to_netcdf(outfile)
 
     return outfile
 
 
-def process_period_group(files, variable, time_period, output_dir,
-                         lon_min, lon_max, lat_min, lat_max,
-                         overwrite=False, replace_original_files=False):
+def process_period_group(
+    files,
+    variable,
+    output_variable,
+    time_period,
+    output_dir,
+    lon_min,
+    lon_max,
+    lat_min,
+    lat_max,
+    overwrite=False,
+    replace_original_files=False,
+):
     """
     Process all files for one time period.
     Files are sorted and assigned ensemble numbers 001, 002, ..., N.
@@ -275,7 +300,7 @@ def process_period_group(files, variable, time_period, output_dir,
     n_files = len(files)
 
     for i, infile in enumerate(files, start=1):
-        new_name = make_output_filename(variable, i, time_period)
+        new_name = make_output_filename(output_variable, i, time_period)
 
         if replace_original_files:
             temp_outfile = infile.parent / f"tmp_{new_name}"
@@ -285,6 +310,7 @@ def process_period_group(files, variable, time_period, output_dir,
                 infile=infile,
                 outfile=temp_outfile,
                 variable=variable,
+                output_variable=output_variable,
                 lon_min=lon_min,
                 lon_max=lon_max,
                 lat_min=lat_min,
@@ -309,6 +335,7 @@ def process_period_group(files, variable, time_period, output_dir,
                 infile=infile,
                 outfile=outfile,
                 variable=variable,
+                output_variable=output_variable,
                 lon_min=lon_min,
                 lon_max=lon_max,
                 lat_min=lat_min,
@@ -384,6 +411,7 @@ if __name__ == "__main__":
         process_period_group(
             files=groups[time_period],
             variable=variable,
+            output_variable=output_variable,
             time_period=time_period,
             output_dir=output_dir,
             lon_min=lon_min,
