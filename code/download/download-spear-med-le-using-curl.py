@@ -50,7 +50,7 @@ LAT_MIN = 53.0
 LAT_MAX = 73.5
 
 # Maximum number of source files handled in one run
-MAX_FILES = 30
+MAX_FILES = 150
 
 # Skip work if the final processed file already exists
 SKIP_EXISTING = True
@@ -59,8 +59,8 @@ SKIP_EXISTING = True
 DELETE_RAW_FILE = True
 
 # Simulation types to download
-# SIMULATIONS = ["historical", "scenarioSSP5-85"]
-SIMULATIONS = ["historical"]
+SIMULATIONS = ["historical", "scenarioSSP5-85"]
+#SIMULATIONS = ["historical"]
 
 # Ensemble members to download
 MEMBERS = [
@@ -86,7 +86,7 @@ MEMBERS = [
 #     "20010101-20101231",
 #     "20110101-20141231",
 # ]
-HISTORICAL_PERIODS = ["19210101-19301231"]
+HISTORICAL_PERIODS = ["19610101-19701231"]
 
 # Scenario simulation periods
 SCENARIO_PERIODS = [
