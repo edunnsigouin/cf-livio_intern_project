@@ -36,13 +36,23 @@ output_dir = input_dir
 
 file_pattern = "*.nc"
 
-replace_original_files = False
-overwrite = False
+replace_original_files = True
+overwrite = True
 
 expected_files_per_period = 100
 
 selected_time_periods = [
-    "19200101-19291231",
+    "19300101-19391231",
+    "19400101-19491231",
+    "19500101-19591231",
+    "19600101-19691231",
+    "19700101-19791231",
+    "19800101-19891231",
+    "19900101-19991231",
+    "20000101-20091231",
+    "20100101-20141231",
+    "20150101-20241231",
+    "20250101-20341231",
 ]
 
 lon_min = 2.0

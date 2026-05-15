@@ -1,6 +1,9 @@
 LICENSE
 README.md
 setup.py
+livio_intern_project/config.py
+livio_intern_project/master_file_list_CESM2_LE_PRECT.py
+livio_intern_project/misc.py
 livio_intern_project.egg-info/PKG-INFO
 livio_intern_project.egg-info/SOURCES.txt
 livio_intern_project.egg-info/dependency_links.txt
