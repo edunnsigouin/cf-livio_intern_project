@@ -1,15 +1,31 @@
 """
 Interpolate daily ERA5 data to the CESM2-LE grid using xESMF.
 
+Method:
+    ERA5 variables are first converted to units comparable with CESM2-LE,
+    then interpolated one yearly file at a time to the CESM2-LE grid.
+    Conservative interpolation is used for precipitation and snow water
+    equivalent because these represent water amounts that should be
+    approximately conserved during remapping. Bilinear interpolation is used
+    for soil moisture because it is treated as a local land-surface state
+    variable, where smooth spatial variation is usually more important than
+    exact conservation. For land-only variables, the ERA5 land-sea mask is used
+    to prevent ocean grid cells from influencing land-variable interpolation
+    near coastlines.
+
 Supported variables:
-    tp : total precipitation
-    sd : snow depth / snow water equivalent (era5 calls swe sd)
+    tp    : total precipitation
+    sd    : snow depth / snow water equivalent
+    swvl1 : volumetric soil water layer 1
 
 Outputs:
-    - keep original ERA5 variable names: tp, sd
+    - keep original ERA5 variable names: tp, sd, swvl1
     - are interpolated to the CESM2-LE grid
     - use units comparable to CESM2-LE
     - do not write xESMF weights to file
+
+NOTE: due to issues with the latest version of python, to run this script,
+use the 'regrid' conda environment and not 'geo_scipy'.
 """
 
 # ====================================================
@@ -29,8 +45,8 @@ from livio_intern_project import config
 # 2. User input parameters and paths
 # ====================================================
 
-variable = "sd"  # choose "tp" or "sd"
-years = np.arange(2000, 2001, 1)
+variable = "swvl1"  # choose "tp", "sd", or "swvl1"
+years = np.arange(2020, 2021, 1)
 
 path_in_era5_base = config.dirs["raw_era5_daily"]
 path_in_cesm = config.dirs["raw_cesm2_le"]
@@ -69,6 +85,14 @@ def get_variable_info(variable):
             "method": "conservative",
             "output_units": "kg/m^2",
             "long_name": "Snow water equivalent",
+            "use_land_mask": True,
+        },
+        "swvl1": {
+            "era5_name": "swvl1",
+            "cesm_name": "SM",
+            "method": "bilinear",
+            "output_units": "kg/m^2",
+            "long_name": "Soil moisture layer 1 water mass",
             "use_land_mask": True,
         },
     }
@@ -199,6 +223,49 @@ def convert_sd_to_kg_per_m2(da):
     return da
 
 
+def convert_swvl1_to_kg_per_m2(da):
+    """
+    Convert ERA5 swvl1 from volumetric soil water to kg/m^2.
+
+    ERA5 swvl1:
+        0-7 cm soil layer
+        units m^3/m^3
+
+    Conversion:
+        swvl1 * layer thickness * water density
+    """
+
+    original_units = da.attrs.get("units", "")
+    units_clean = normalise_units(original_units)
+
+    if units_clean in [
+        "m^3m^-3",
+        "m3m-3",
+        "m**3m**-3",
+        "m3/m3",
+    ]:
+        layer_thickness_m = 0.07
+        water_density = 1000.0
+
+        da = da * layer_thickness_m * water_density
+        note = (
+            "Converted from m^3/m^3 to kg/m^2 using "
+            "ERA5 layer 1 thickness 0.07 m and water density 1000 kg/m^3."
+        )
+
+    elif units_clean in ["kg/m2", "kg/m^2", "kgm-2"]:
+        note = "No conversion applied; input already kg/m^2."
+
+    else:
+        raise ValueError(f"Unknown swvl1 units: '{original_units}'.")
+
+    da.attrs["units"] = "kg/m^2"
+    da.attrs["original_units"] = original_units
+    da.attrs["conversion_note"] = note
+
+    return da
+
+
 def convert_units_if_needed(da, info):
     """Apply variable-specific unit conversion."""
 
@@ -207,6 +274,9 @@ def convert_units_if_needed(da, info):
 
     if info["era5_name"] == "sd":
         return convert_sd_to_kg_per_m2(da)
+
+    if info["era5_name"] == "swvl1":
+        return convert_swvl1_to_kg_per_m2(da)
 
     raise NotImplementedError(f"No unit conversion defined for {info['era5_name']}.")
 
@@ -243,15 +313,12 @@ def load_era5_land_mask(mask_file, reference_grid):
 
     lsm = ds_mask[mask_var]
 
-    # Some ERA5 files use time; newer CDS files may use valid_time.
     for dim in ["time", "valid_time"]:
         if dim in lsm.dims:
             lsm = lsm.isel({dim: 0}, drop=True)
 
-    # Remove any remaining singleton dimensions/coordinates.
     lsm = lsm.squeeze(drop=True)
 
-    # Match ERA5 data grid exactly.
     lsm = lsm.sel(
         lat=reference_grid.lat,
         lon=reference_grid.lon,
@@ -259,8 +326,6 @@ def load_era5_land_mask(mask_file, reference_grid):
 
     mask = xr.where(lsm > 0.5, 1, 0).astype("int32")
     mask.name = "mask"
-
-    # xESMF requires mask dimensions to match the grid dimensions only.
     mask = mask.transpose("lat", "lon")
 
     return mask
@@ -335,17 +400,15 @@ def interpolate_one_year(year, info, ds_cesm_grid):
 
     ds_out = da_interp.to_dataset()
 
-    # Keep only required coordinates/variables
     keep_vars = [
         info["era5_name"],
         "time",
         "lat",
         "lon",
     ]
-    
+
     ds_out = ds_out[keep_vars]
 
-    # Remove unwanted ERA5 auxiliary coordinates if present
     drop_coords = []
 
     for coord in ["number", "expver"]:
@@ -356,7 +419,6 @@ def interpolate_one_year(year, info, ds_cesm_grid):
         ds_out = ds_out.drop_vars(drop_coords)
 
     return ds_out
-
 
 
 def write_output(ds, year, info):
